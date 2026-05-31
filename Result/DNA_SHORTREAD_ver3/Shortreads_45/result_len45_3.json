@@ -1,0 +1,62 @@
+{
+  "experiment_info": {
+    "version": 3,
+    "genome_length": 10000,
+    "reads_count": 1000,
+    "reads_length": 45,
+    "error_rate": 0.01,
+    "allowed_mismatch": 3
+  },
+  "algorithms": {
+    "Trivial": {
+      "execution_time_ms": 11748.50,
+      "accuracy": 98.61,
+      "match_count": 9861,
+      "mismatch_count": 8,
+      "unknown_count_N": 131,
+      "original_length": 10000,
+      "reconstructed_length": 10000,
+      "length_difference": 0
+    },
+    "BWT": {
+      "execution_time_ms": 524.69,
+      "accuracy": 98.61,
+      "match_count": 9861,
+      "mismatch_count": 8,
+      "unknown_count_N": 131,
+      "original_length": 10000,
+      "reconstructed_length": 10000,
+      "length_difference": 0
+    },
+    "RabinKarp": {
+      "execution_time_ms": 1367.35,
+      "accuracy": 98.61,
+      "match_count": 9861,
+      "mismatch_count": 8,
+      "unknown_count_N": 131,
+      "original_length": 10000,
+      "reconstructed_length": 10000,
+      "length_difference": 0
+    },
+    "IndexMapping": {
+      "execution_time_ms": 995.76,
+      "accuracy": 98.61,
+      "match_count": 9861,
+      "mismatch_count": 8,
+      "unknown_count_N": 131,
+      "original_length": 10000,
+      "reconstructed_length": 10000,
+      "length_difference": 0
+    },
+    "KMP": {
+      "execution_time_ms": 1023.22,
+      "accuracy": 98.61,
+      "match_count": 9861,
+      "mismatch_count": 8,
+      "unknown_count_N": 131,
+      "original_length": 10000,
+      "reconstructed_length": 10000,
+      "length_difference": 0
+    }
+  }
+}

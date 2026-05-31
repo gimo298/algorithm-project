@@ -1,5 +1,7 @@
 #include "ExperimentResult.h"
 
+#include "../Utils/ResultPaths.h"
+
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -52,44 +54,6 @@ CompareStats calculateCompareStats(
     return stats;
 }
 
-int getNextVersionNumber() {
-    fs::path resultDir = "Result";
-
-    if (!fs::exists(resultDir)) {
-        fs::create_directory(resultDir);
-        return 1;
-    }
-
-    int maxVersion = 0;
-
-    for (const auto& entry : fs::directory_iterator(resultDir)) {
-        if (!entry.is_directory()) {
-            continue;
-        }
-
-        string name =
-            entry.path().filename().string();
-
-        string prefix = "DNA_SHORTREAD_ver";
-
-        if (name.find(prefix) == 0) {
-            string numberPart =
-                name.substr(prefix.size());
-
-            try {
-                int version = stoi(numberPart);
-                if (version > maxVersion) {
-                    maxVersion = version;
-                }
-            }
-            catch (...) {
-            }
-        }
-    }
-
-    return maxVersion + 1;
-}
-
 double findExecutionTime(
     const vector<ExecutionStats>& executionStatsList,
     const string& algorithmName
@@ -106,37 +70,18 @@ double findExecutionTime(
 void saveExperimentResultJson(
     const Config& cfg,
     const vector<CompareStats>& compareStatsList,
-    const vector<ExecutionStats>& executionStatsList
-) {
-    int version = getNextVersionNumber();
-
-    fs::path outputDir =
-        fs::path("Result")
-        / ("DNA_SHORTREAD_ver" + to_string(version))
-        / ("SHORTREAD_길이_" + to_string(cfg.LenOfReads));
-
-    fs::create_directories(outputDir);
-
-    fs::path outputPath =
-        outputDir / "result.json";
-
-    saveExperimentResultJson(
-        cfg,
-        compareStatsList,
-        executionStatsList,
-        version,
-        outputPath
-    );
-}
-
-void saveExperimentResultJson(
-    const Config& cfg,
-    const vector<CompareStats>& compareStatsList,
     const vector<ExecutionStats>& executionStatsList,
     int version,
     const fs::path& outputPath
 ) {
+    fs::create_directories(getInputVersionDir(version));
     fs::create_directories(outputPath.parent_path());
+
+    if (fs::exists(outputPath)) {
+        cout << cfg.LenOfReads
+             << "길이의 json 파일이 이미 존재합니다.\n";
+        return;
+    }
 
     ofstream fout(outputPath);
 

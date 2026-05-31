@@ -2,8 +2,14 @@
 
 #include "../Config.h"
 
-void runMappingExperimentsByReadLength(
+#include <filesystem>
+
+void runMappingExperiment(
     const Config& baseConfig,
     int inputVersion,
-    int readLength
+    int readLength,
+    int runIndex,
+    const std::filesystem::path& genomePath,
+    const std::filesystem::path& shortReadsPath,
+    const std::filesystem::path& outputPath
 );

@@ -5,7 +5,6 @@
 #include <filesystem>
 #include <string>
 #include <vector>
-#include <map>
 
 using namespace std;
 
@@ -30,12 +29,6 @@ CompareStats calculateCompareStats(
     const string& algorithmName,
     const string& original,
     const string& reconstructed
-);
-
-void saveExperimentResultJson(
-    const Config& cfg,
-    const vector<CompareStats>& compareStatsList,
-    const vector<ExecutionStats>& executionStatsList
 );
 
 void saveExperimentResultJson(

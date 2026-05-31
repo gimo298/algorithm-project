@@ -7,10 +7,12 @@
 #include "../Mapping/RabinKarp.h"
 #include "../Mapping/TrivialMapping.h"
 #include "../Utils/IO.h"
+#include "../Utils/ResultPaths.h"
 #include "ExperimentResult.h"
 
 #include <chrono>
 #include <filesystem>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -57,10 +59,14 @@ void validateShortReadLength(
     }
 }
 
-void runMappingExperimentsByReadLength(
+void runMappingExperiment(
     const Config& baseConfig,
     int inputVersion,
-    int readLength
+    int readLength,
+    int runIndex,
+    const fs::path& genomePath,
+    const fs::path& shortReadsPath,
+    const fs::path& outputPath
 ) {
     if (inputVersion <= 0) {
         throw runtime_error("inputVersion은 1 이상의 정수여야 합니다.");
@@ -70,15 +76,17 @@ void runMappingExperimentsByReadLength(
         throw runtime_error("readLength는 1 이상의 정수여야 합니다.");
     }
 
+    if (runIndex <= 0) {
+        throw runtime_error("runIndex는 1 이상의 정수여야 합니다.");
+    }
+
     Config cfg = baseConfig;
     cfg.LenOfReads = readLength;
 
-    fs::path inputDir =
-        fs::path("Result") /
-        ("DNA_SHORTREAD_ver" + to_string(inputVersion));
-
-    fs::path genomePath = inputDir / "DNA.txt";
-    fs::path shortReadsPath = inputDir / "ShortReads.txt";
+    if (fs::exists(outputPath)) {
+        cout << outputPath.string() << " 파일이 이미 존재하여 생략합니다.\n";
+        return;
+    }
 
     if (!fs::exists(genomePath)) {
         throw runtime_error(genomePath.string() + " 파일이 존재하지 않습니다.");
@@ -235,10 +243,6 @@ void runMappingExperimentsByReadLength(
             reconstructedKMP
         )
     );
-
-    fs::path outputPath =
-        inputDir /
-        ("mapping_result_len_" + to_string(readLength) + ".json");
 
     saveExperimentResultJson(
         cfg,
