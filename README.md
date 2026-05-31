@@ -342,3 +342,212 @@ ms (millisecond)
 * Mapping 정확도가 동일한 경우 복원 정확도 역시 거의 동일하게 나타났다.
 
 따라서 대규모 유전체 분석 환경에서는 Mapping 알고리즘의 탐색 효율이 전체 성능을 결정하는 핵심 요소임을 확인할 수 있었다.
+
+---
+
+## 10. 실험 가이드
+
+이 프로젝트는 `main.cpp`를 실행하면 실험 입력 데이터와 결과 JSON을 만들고, `plot_experiment_metrics.py`를 실행하면 그 JSON을 읽어서 그래프를 그리는 구조입니다.
+
+핵심은 다음 두 파일입니다.
+
+* `main.cpp`: 어떤 조건으로 실험 데이터를 만들고 비교할지 결정
+* `plot_experiment_metrics.py`: 어느 버전의 결과를 읽고 어떤 범위로 그래프를 그릴지 결정
+
+### 10-1. 먼저 알아야 할 결과 폴더 구조
+
+실험 결과는 `Result/DNA_SHORTREAD_ver{n}` 형식의 폴더에 저장됩니다.
+
+예시
+
+```text
+Result/
+└── DNA_SHORTREAD_ver3/
+    ├── DNA.txt
+    ├── Shortreads_15/
+    │   ├── len15_1.txt
+    │   ├── len15_2.txt
+    │   ├── len15_3.txt
+    │   ├── result_len15_1.json
+    │   ├── result_len15_2.json
+    │   └── result_len15_3.json
+    ├── Shortreads_20/
+    └── ...
+```
+
+각 파일의 의미는 다음과 같습니다.
+
+* `DNA.txt`: 해당 버전 실험에서 사용할 원본 DNA
+* `Shortreads_{길이}`: 같은 read 길이에 대한 입력 묶음 폴더
+* `len{길이}_{실행번호}.txt`: 실제 short read 입력 파일
+* `result_len{길이}_{실행번호}.json`: 각 mapping 알고리즘의 실행 시간과 정확도 결과
+
+중요한 점은 `version`을 기준으로 DNA와 Short Read가 묶인다는 것입니다.
+
+* 같은 `version`을 다시 실행하면 기존 `DNA.txt`, `len*.txt`, `result_len*.json`을 재사용하거나 이미 존재하면 생략합니다.
+* 완전히 새로운 실험 세트를 만들고 싶으면 `version`을 새 값으로 바꾸는 것이 가장 안전합니다.
+* 같은 `version`을 유지한 채 `cfg.length`, `CntOfReads`, `readLengths`를 바꾸면 기존 파일과 충돌하여 예외가 날 수 있습니다.
+
+### 10-2. 실험 조건은 `main.cpp`에서 바꾼다
+
+다른 사람이 실험할 때 가장 먼저 봐야 하는 곳은 `main.cpp`입니다.
+
+```cpp
+int version = 3;
+int runCount = 3;
+
+Config cfg;
+cfg.length = 10000;
+cfg.CntOfReads = 1000;
+cfg.ErrorRate = 0.01;
+cfg.allowedMismatch = 3;
+
+vector<int> readLengths = {
+    15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100
+};
+```
+
+실험 변수의 의미는 아래와 같습니다.
+
+| 변수 | 위치 | 의미 |
+| --- | --- | --- |
+| `version` | `main.cpp` | 결과를 저장할 실험 버전 번호. 결과 폴더 이름 `DNA_SHORTREAD_ver{version}`에 직접 반영됨 |
+| `runCount` | `main.cpp` | 같은 read 길이에 대해 몇 번 반복 실행할지 결정 |
+| `cfg.length` | `main.cpp` | 원본 DNA 길이 |
+| `cfg.CntOfReads` | `main.cpp` | 한 번의 실험에서 생성할 short read 개수 |
+| `cfg.ErrorRate` | `main.cpp` | read 생성 시 삽입할 오류 비율 |
+| `cfg.allowedMismatch` | `main.cpp` | mapping 시 허용할 mismatch 개수 |
+| `readLengths` | `main.cpp` | 실험할 short read 길이 목록 |
+| `cfg.LenOfReads` | `RunMappingExperiment.cpp` 내부 | 각 반복에서 현재 `readLength` 값으로 자동 설정됨 |
+
+실제로는 `readLengths`를 하나씩 순회하면서, 각 길이에 대해 `runCount`만큼 반복 실험합니다.
+
+즉 총 실행 횟수는 다음과 같습니다.
+
+```text
+실험 수 = readLengths 개수 × runCount
+```
+
+예를 들어 `readLengths = [15, 20, 25]`, `runCount = 3`이면 총 9개의 결과 JSON이 생성됩니다.
+
+### 10-3. 변수별로 언제 바꾸면 되는가
+
+실험 목적에 따라 주로 아래 변수들을 바꾸면 됩니다.
+
+* DNA 크기를 늘려 성능 차이를 크게 보고 싶다: `cfg.length` 증가
+* read 수가 많아질 때 실행 시간이 어떻게 변하는지 보고 싶다: `cfg.CntOfReads` 증가
+* read 길이에 따른 성능 변화를 보고 싶다: `readLengths` 수정
+* 오류가 많은 입력에서 정확도가 어떻게 달라지는지 보고 싶다: `cfg.ErrorRate` 증가
+* mismatch 허용 범위를 비교하고 싶다: `cfg.allowedMismatch` 변경
+* 독립된 새 실험 세트를 만들고 싶다: `version` 변경
+* 같은 조건으로 여러 번 반복해 평균적인 경향을 보고 싶다: `runCount` 증가
+
+권장 사용 방식은 다음과 같습니다.
+
+* 입력 조건을 바꿨다면 `version`도 함께 바꾸기
+* 그래프 범위를 바꿀 때는 `main.cpp`가 아니라 `plot_experiment_metrics.py`만 수정하기
+* 기존 결과를 덮어쓰기보다 새 `version`으로 남겨서 비교 가능하게 관리하기
+
+### 10-4. 실험 실행 순서
+
+1. `main.cpp`에서 실험 변수 수정
+2. C++ 프로그램 빌드 후 실행
+3. `Result/DNA_SHORTREAD_ver{version}` 아래에 결과 JSON 생성 확인
+4. `plot_experiment_metrics.py`에서 같은 `version`을 읽도록 설정
+5. Python 스크립트 실행 후 그래프 확인
+
+VS Code 기준으로는 C++ 빌드 후 `app.exe`를 실행하면 실험이 진행됩니다.
+
+### 10-5. 그래프 설정은 `plot_experiment_metrics.py`에서 바꾼다
+
+그래프는 `plot_experiment_metrics.py`의 `SETTINGS` 딕셔너리로 제어합니다.
+
+```python
+SETTINGS = {
+    "version": 3,
+    "min_length": 15,
+    "max_length": 115,
+    "length_step": 5,
+    "time_y_min": 0.0,
+    "time_y_max": None,
+    "time_focus_algorithm": "Trivial",
+    "time_zoom_padding_ratio": 0.08,
+    "accuracy_y_min": 75.0,
+    "accuracy_y_max": 100.0,
+    "result_root": Path("Result"),
+}
+```
+
+각 그래프 변수의 의미는 다음과 같습니다.
+
+| 변수 | 의미 |
+| --- | --- |
+| `version` | 읽어올 결과 폴더 번호. `Result/DNA_SHORTREAD_ver{version}`을 찾음 |
+| `min_length` | 그래프에 포함할 최소 read 길이 |
+| `max_length` | 그래프에 포함할 최대 read 길이 |
+| `length_step` | read 길이 간격 |
+| `time_y_min`, `time_y_max` | 시간 그래프 y축 범위 |
+| `time_focus_algorithm` | 별도 분리해서 보여줄 알고리즘 이름 |
+| `time_zoom_padding_ratio` | 나머지 알고리즘 시간 그래프를 얼마나 여유 있게 확대할지 결정 |
+| `accuracy_y_min`, `accuracy_y_max` | 정확도 그래프 y축 범위 |
+| `result_root` | 결과 폴더 루트 경로 |
+
+현재 그래프 스크립트는 다음 방식으로 동작합니다.
+
+* 시간 그래프: `Trivial`은 별도 서브플롯으로 분리, 나머지 알고리즘은 확대해서 비교
+* 정확도 그래프: `Trivial`은 별도 서브플롯으로 분리, 나머지 알고리즘은 한 그래프에서 비교
+* 결과 파일 이름이 `result_len{길이}_{실행번호}.json` 형식을 따를 때만 읽음
+
+### 10-6. 다른 사람이 가장 자주 헷갈리는 부분
+
+#### 1. 왜 결과 폴더 이름이 `DNA_SHORTREAD_ver{n}`인가?
+
+이 프로젝트는 DNA, short read, 결과 JSON을 하나의 실험 세트로 묶기 위해 `version` 번호를 사용합니다.
+
+즉 `ver3`이라면,
+
+* `Result/DNA_SHORTREAD_ver3/DNA.txt`
+* `Result/DNA_SHORTREAD_ver3/Shortreads_15/len15_1.txt`
+* `Result/DNA_SHORTREAD_ver3/Shortreads_15/result_len15_1.json`
+
+이 모두가 같은 실험 묶음입니다.
+
+#### 2. 왜 어떤 파일은 다시 실행해도 새로 안 만들어지는가?
+
+입력 파일과 결과 파일이 이미 있으면 재생성하지 않도록 되어 있습니다.
+
+따라서 설정을 바꿨는데도 예전 결과가 남아 있으면,
+
+* `version`을 새로 바꾸거나
+* 기존 해당 버전 폴더를 직접 정리한 뒤 다시 실행해야 합니다.
+
+#### 3. `Config.h`의 `LenOfReads`는 직접 수정해야 하는가?
+
+보통 직접 수정할 필요 없습니다.
+
+`main.cpp`에서 `readLengths`를 순회할 때 각 길이가 `RunMappingExperiment.cpp` 내부에서 `cfg.LenOfReads = readLength`로 자동 반영됩니다.
+
+즉 read 길이 실험 범위는 `Config.h`보다 `main.cpp`의 `readLengths`가 더 중요합니다.
+
+### 10-7. 빠르게 실험을 시작하는 최소 수정 포인트
+
+다른 사람이 처음 실험할 때는 아래 변수만 바꾸면 충분합니다.
+
+* `main.cpp`
+* `version`
+* `runCount`
+* `cfg.length`
+* `cfg.CntOfReads`
+* `cfg.ErrorRate`
+* `cfg.allowedMismatch`
+* `readLengths`
+
+그래프를 그릴 때는 아래 변수만 맞추면 됩니다.
+
+* `plot_experiment_metrics.py`
+* `SETTINGS["version"]`
+* `SETTINGS["min_length"]`
+* `SETTINGS["max_length"]`
+* `SETTINGS["length_step"]`
+
+이 네 가지를 현재 생성된 결과와 맞추면 그래프는 정상적으로 생성됩니다.
