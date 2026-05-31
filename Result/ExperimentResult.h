@@ -2,6 +2,7 @@
 
 #include "../Config.h"
 
+#include <filesystem>
 #include <string>
 #include <vector>
 #include <map>
@@ -35,4 +36,12 @@ void saveExperimentResultJson(
     const Config& cfg,
     const vector<CompareStats>& compareStatsList,
     const vector<ExecutionStats>& executionStatsList
+);
+
+void saveExperimentResultJson(
+    const Config& cfg,
+    const vector<CompareStats>& compareStatsList,
+    const vector<ExecutionStats>& executionStatsList,
+    int version,
+    const std::filesystem::path& outputPath
 );

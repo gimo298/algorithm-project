@@ -1,7 +1,6 @@
 #include "Config.h"
 
-#include "DNA/GenerateDNA.h"
-#include "Reads/GenerateShortReads.h"
+#include "Utils/GenerateInput.h"
 
 #include "Mapping/BWT.h"
 #include "Mapping/IndexMapping.h"
@@ -10,134 +9,92 @@
 #include "Mapping/TrivialMapping.h"
 
 #include "Assembly/Reconstruct.h"
+#include "Compare/CompareResult.h"
 #include "Utils/IO.h"
-#include "Result/ExperimentResult.h"
+#include "Time/executeTime.h"
 
-#include <chrono>
 #include <string>
 #include <vector>
 
 using namespace std;
 
-template <typename Func>
-vector<info> measureMappingTime(
-    const string& algorithmName,
-    Func mappingFunc,
-    vector<ExecutionStats>& executionStatsList
-) {
-    auto start =
-        chrono::high_resolution_clock::now();
-
-    vector<info> result =
-        mappingFunc();
-
-    auto end =
-        chrono::high_resolution_clock::now();
-
-    double elapsedMs =
-        chrono::duration<double, milli>(
-            end - start
-        ).count();
-
-    executionStatsList.push_back({
-        algorithmName,
-        elapsedMs
-    });
-
-    return result;
-}
-
 int main() {
 
     Config cfg;
-    cfg.length = 100000;
-    cfg.CntOfReads = 10000;
-    cfg.LenOfReads = 15;
+    cfg.length = 10000;
+    cfg.CntOfReads = 1000;
+    //cfg.LenOfReads = 15;
     cfg.ErrorRate = 0.01;
-    cfg.allowedMismatch = 1;
+    cfg.allowedMismatch = 3;
 
-    generateDNAFile(cfg);
-    generateShortReadsFile(cfg);
+    fs::path inputDir =
+        generateInputFiles(cfg);
 
     string genome =
-        loadGenome("0_DNA.txt");
+        loadGenome(inputDir / "DNA.txt");
 
     vector<string> shortReads =
-        loadShortReads("1_ShortReads.txt");
-
-    vector<ExecutionStats> executionStatsList;
-    vector<CompareStats> compareStatsList;
+        loadShortReads(inputDir / "ShortReads.txt");
 
     vector<info> trivialResults =
-        measureMappingTime(
-            "Trivial",
-            [&]() {
-                return trivialMapping(
-                    genome,
-                    shortReads,
-                    cfg.allowedMismatch
-                );
-            },
-            executionStatsList
+        trivialMapping(
+            genome,
+            shortReads,
+            cfg.allowedMismatch
         );
 
     vector<info> bwtResults =
-        measureMappingTime(
-            "BWT",
-            [&]() {
-                return BWTMapping(
-                    genome,
-                    shortReads,
-                    cfg.allowedMismatch
-                );
-            },
-            executionStatsList
-        );
-
-    vector<info> rabinKarpResults =
-        measureMappingTime(
-            "RabinKarp",
-            [&]() {
-                return RabinKarpMapping(
-                    genome,
-                    shortReads,
-                    cfg.allowedMismatch
-                );
-            },
-            executionStatsList
+        BWTMapping(
+            genome,
+            shortReads,
+            cfg.allowedMismatch
         );
 
     vector<info> indexResults =
-        measureMappingTime(
-            "IndexMapping",
-            [&]() {
-                return indexMapping(
-                    genome,
-                    shortReads,
-                    cfg.allowedMismatch
-                );
-            },
-            executionStatsList
+        indexMapping(
+            genome,
+            shortReads,
+            cfg.allowedMismatch
+        );
+
+    vector<info> rabinKarpResults =
+        RabinKarpMapping(
+            genome,
+            shortReads,
+            cfg.allowedMismatch
         );
 
     vector<info> kmpResults =
-        measureMappingTime(
-            "KMP",
-            [&]() {
-                return KMPMapping(
-                    genome,
-                    shortReads,
-                    cfg.allowedMismatch
-                );
-            },
-            executionStatsList
+        KMPMapping(
+            genome,
+            shortReads,
+            cfg.allowedMismatch
         );
 
-    saveResults("2_TrivialMapping_result.txt", trivialResults);
-    saveResults("3_BWT_result.txt", bwtResults);
-    saveResults("4_RabinKarpMapping_result.txt", rabinKarpResults);
-    saveResults("5_IndexMapping_result.txt", indexResults);
-    saveResults("6_KMPMapping_result.txt", kmpResults);
+    // saveResults(
+    //     "2_TrivialMapping_result.txt",
+    //     trivialResults
+    // );
+
+    // saveResults(
+    //     "3_BWT_result.txt",
+    //     bwtResults
+    // );
+
+    // saveResults(
+    //     "4_RabinKarpMapping_result.txt",
+    //     rabinKarpResults
+    // );
+
+    // saveResults(
+    //     "5_IndexMapping_result.txt",
+    //     indexResults
+    // );
+
+    // saveResults(
+    //     "6_KMPMapping_result.txt",
+    //     kmpResults
+    // );
 
     string reconstructedTrivial =
         runReconstruction(
@@ -179,50 +136,40 @@ int main() {
             cfg
         );
 
-    compareStatsList.push_back(
-        calculateCompareStats(
-            "Trivial",
-            genome,
-            reconstructedTrivial
-        )
+    compareReconstructionWithOriginal(
+        "Trivial",
+        genome,
+        reconstructedTrivial
     );
 
-    compareStatsList.push_back(
-        calculateCompareStats(
-            "BWT",
-            genome,
-            reconstructedBWT
-        )
+    compareReconstructionWithOriginal(
+        "BWT",
+        genome,
+        reconstructedBWT
     );
 
-    compareStatsList.push_back(
-        calculateCompareStats(
-            "RabinKarp",
-            genome,
-            reconstructedRabinKarp
-        )
+    compareReconstructionWithOriginal(
+        "RabinKarp",
+        genome,
+        reconstructedRabinKarp
     );
 
-    compareStatsList.push_back(
-        calculateCompareStats(
-            "IndexMapping",
-            genome,
-            reconstructedIndexMapping
-        )
+    compareReconstructionWithOriginal(
+        "IndexMapping",
+        genome,
+        reconstructedIndexMapping
     );
 
-    compareStatsList.push_back(
-        calculateCompareStats(
-            "KMP",
-            genome,
-            reconstructedKMP
-        )
+    compareReconstructionWithOriginal(
+        "KMP",
+        genome,
+        reconstructedKMP
     );
 
-    saveExperimentResultJson(
+    measureAndSaveExecutionTimes(
         cfg,
-        compareStatsList,
-        executionStatsList
+        genome,
+        shortReads
     );
 
     return 0;

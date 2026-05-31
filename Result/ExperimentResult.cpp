@@ -53,7 +53,7 @@ CompareStats calculateCompareStats(
 }
 
 int getNextVersionNumber() {
-    fs::path resultDir = "RESULT";
+    fs::path resultDir = "Result";
 
     if (!fs::exists(resultDir)) {
         fs::create_directory(resultDir);
@@ -111,7 +111,7 @@ void saveExperimentResultJson(
     int version = getNextVersionNumber();
 
     fs::path outputDir =
-        fs::path("RESULT")
+        fs::path("Result")
         / ("DNA_SHORTREAD_ver" + to_string(version))
         / ("SHORTREAD_길이_" + to_string(cfg.LenOfReads));
 
@@ -120,10 +120,28 @@ void saveExperimentResultJson(
     fs::path outputPath =
         outputDir / "result.json";
 
+    saveExperimentResultJson(
+        cfg,
+        compareStatsList,
+        executionStatsList,
+        version,
+        outputPath
+    );
+}
+
+void saveExperimentResultJson(
+    const Config& cfg,
+    const vector<CompareStats>& compareStatsList,
+    const vector<ExecutionStats>& executionStatsList,
+    int version,
+    const fs::path& outputPath
+) {
+    fs::create_directories(outputPath.parent_path());
+
     ofstream fout(outputPath);
 
     if (!fout) {
-        throw runtime_error("result.json 파일 생성 실패");
+        throw runtime_error(outputPath.string() + " 파일 생성 실패");
     }
 
     fout << fixed << setprecision(2);
