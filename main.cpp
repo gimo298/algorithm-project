@@ -4,30 +4,47 @@
 #include "Utils/GenerateInput.h"
 #include "Utils/ResultPaths.h"
 
+#include <atomic>
+#include <filesystem>
+#include <iostream>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace std;
 
+struct ExperimentTask {
+    int readLength;
+    int runIndex;
+};
+
 int main() {
 
-    int version = 3; // 사용하는 DNA의 version
-    int runCount = 3; // read 길이별 실행횟수
+    int version = 1;
+    int runCount = 3;
 
     Config cfg;
-    cfg.length = 10000;
-    cfg.CntOfReads = 1000;
+    cfg.length = 100000;
+    cfg.CntOfReads = 3000;
     cfg.ErrorRate = 0.01;
     cfg.allowedMismatch = 3;
 
     vector<int> readLengths = {
-        15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100
-    }; // 실험해볼 read 길이의 목록
+        50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100
+    };
+
+    // 동시에 실행할 스레드 수
+    // 처음에는 2~4 정도 추천
+    int threadCount = 12;
 
     ensureInputVersionDirectory(version);
     ensureGenomeFile(cfg, version);
 
+    vector<ExperimentTask> tasks;
+
     for (int readLength : readLengths) {
+
         ensureShortReadsDirectory(
             version,
             readLength
@@ -35,36 +52,106 @@ int main() {
 
         for (int runIndex = 1;
              runIndex <= runCount;
-             ++runIndex) {
-            filesystem::path genomePath =
-                getGenomeFilePath(version);
+             runIndex++) {
 
-            filesystem::path shortReadsPath =
-                ensureShortReadsFile(
-                    cfg,
-                    version,
-                    readLength,
-                    runIndex
-                );
-
-            filesystem::path outputPath =
-                getMappingResultJsonPath(
-                    version,
-                    readLength,
-                    runIndex
-                );
-
-            runMappingExperiment(
-                cfg,
-                version,
+            tasks.push_back({
                 readLength,
-                runIndex,
-                genomePath,
-                shortReadsPath,
-                outputPath
-            );
+                runIndex
+            });
         }
     }
+
+    atomic<int> taskIndex = 0;
+    mutex coutMutex;
+
+    auto worker = [&]() {
+
+        while (true) {
+
+            int index = taskIndex++;
+
+            if (index >= (int)tasks.size()) {
+                break;
+            }
+
+            ExperimentTask task = tasks[index];
+
+            try {
+                Config localCfg = cfg;
+                localCfg.LenOfReads = task.readLength;
+
+                filesystem::path genomePath =
+                    getGenomeFilePath(version);
+
+                filesystem::path shortReadsPath =
+                    ensureShortReadsFile(
+                        localCfg,
+                        version,
+                        task.readLength,
+                        task.runIndex
+                    );
+
+                filesystem::path outputPath =
+                    getMappingResultJsonPath(
+                        version,
+                        task.readLength,
+                        task.runIndex
+                    );
+
+                {
+                    lock_guard<mutex> lock(coutMutex);
+                    cout << "[START] readLength="
+                         << task.readLength
+                         << ", runIndex="
+                         << task.runIndex
+                         << '\n';
+                }
+
+                runMappingExperiment(
+                    localCfg,
+                    version,
+                    task.readLength,
+                    task.runIndex,
+                    genomePath,
+                    shortReadsPath,
+                    outputPath
+                );
+
+                {
+                    lock_guard<mutex> lock(coutMutex);
+                    cout << "[DONE] readLength="
+                         << task.readLength
+                         << ", runIndex="
+                         << task.runIndex
+                         << '\n';
+                }
+            }
+            catch (const exception& e) {
+
+                lock_guard<mutex> lock(coutMutex);
+
+                cerr << "[ERROR] readLength="
+                     << task.readLength
+                     << ", runIndex="
+                     << task.runIndex
+                     << " : "
+                     << e.what()
+                     << '\n';
+            }
+        }
+    };
+
+    vector<thread> workers;
+
+    for (int i = 0; i < threadCount; i++) {
+        workers.push_back(thread(worker));
+    }
+
+    for (thread& t : workers) {
+        t.join();
+    }
+
+    cout << "전체 실험 완료\n";
 
     return 0;
 }
