@@ -25,18 +25,18 @@ int main() {
     int runCount = 3;
 
     Config cfg;
-    cfg.length = 100000;
+    cfg.length = 10000;
     cfg.CntOfReads = 3000;
     cfg.ErrorRate = 0.01;
     cfg.allowedMismatch = 3;
 
     vector<int> readLengths = {
-        50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100
+        50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200
     };
 
     // 동시에 실행할 스레드 수
     // 처음에는 2~4 정도 추천
-    int threadCount = 12;
+    int threadCount = 2;
 
     ensureInputVersionDirectory(version);
     ensureGenomeFile(cfg, version);
