@@ -26,6 +26,19 @@ char mutateBase(char current, mt19937& gen) {
 
 void generateShortReadsFile(const Config& cfg) {
 
+    generateShortReadsFile(
+        cfg,
+        "0_DNA.txt",
+        "1_ShortReads.txt"
+    );
+}
+
+void generateShortReadsFile(
+    const Config& cfg,
+    const filesystem::path& genomePath,
+    const filesystem::path& outputPath
+) {
+
     int LenOfReads = cfg.LenOfReads;
     int CntOfReads = cfg.CntOfReads;
     double ErrorRate = cfg.ErrorRate;
@@ -33,9 +46,6 @@ void generateShortReadsFile(const Config& cfg) {
     if (LenOfReads <= 0 || CntOfReads <= 0) {
         throw runtime_error("Read의 길이와 개수는 0보다 큰 정수여야 합니다.");
     }
-
-    filesystem::path genomePath = "0_DNA.txt";
-    filesystem::path outputPath = "1_ShortReads.txt";
 
     string genome = loadGenome(genomePath);
 

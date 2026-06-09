@@ -16,10 +16,11 @@
 
 using namespace std;
 
-void measureAndSaveExecutionTimes(const Config& cfg) {
-    string genome = loadGenome("0_DNA.txt");
-    vector<string> shortReads = loadShortReads("1_ShortReads.txt");
-
+void measureAndSaveExecutionTimes(
+    const Config& cfg,
+    const string& genome,
+    const vector<string>& shortReads
+) {
     cout << "====================================\n";
     cout << "각 매핑 알고리즘별 연산 속도 측정 시작\n";
     cout << "게놈 길이: " << cfg.length << "\n";

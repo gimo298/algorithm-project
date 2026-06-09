@@ -27,13 +27,24 @@ string generateDNA(int length) {
 
 void generateDNAFile(const Config& cfg) {
 
+    generateDNAFile(
+        cfg,
+        "0_DNA.txt"
+    );
+}
+
+void generateDNAFile(
+    const Config& cfg,
+    const filesystem::path& outputPath
+) {
+
     string dna = generateDNA(cfg.length);
 
-    ofstream fout("0_DNA.txt");
+    ofstream fout(outputPath);
 
     fout << dna;
 
     fout.close();
 
-    cout << "0_DNA.txt 저장 완료\n";
+    cout << outputPath.string() << " 저장 완료\n";
 }
